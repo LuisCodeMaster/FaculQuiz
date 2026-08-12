@@ -761,9 +761,199 @@ def revisao_inteligente():
 
 
 # ==========================================
-# MENU
+# CADASTRAR QUESTÕES
 # ==========================================
 
+def cadastrar_questao():
+
+    print("\n")
+    print("=" * 45)
+    print("          ✏️ CADASTRAR QUESTÃO")
+    print("=" * 45)
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    # ==============================
+    # ESCOLHER MATÉRIA
+    # ==============================
+
+    cursor.execute("""
+        SELECT id, nome
+        FROM materias
+        ORDER BY nome
+    """)
+
+    materias = cursor.fetchall()
+
+    if not materias:
+        print("\n❌ Nenhuma matéria cadastrada.")
+        conexao.close()
+        return
+
+    print("\n📚 Matérias:")
+
+    for materia in materias:
+        print(f"{materia[0]}. {materia[1]}")
+
+    while True:
+
+        try:
+            materia_id = int(
+                input("\nEscolha a matéria: ")
+            )
+
+            if any(m[0] == materia_id for m in materias):
+                break
+
+            print("❌ Matéria inválida.")
+
+        except ValueError:
+            print("❌ Digite apenas o número da matéria.")
+
+    # ==============================
+    # ESCOLHER ASSUNTO
+    # ==============================
+
+    cursor.execute("""
+        SELECT id, nome
+        FROM assuntos
+        WHERE materia_id = ?
+        ORDER BY nome
+    """, (materia_id,))
+
+    assuntos = cursor.fetchall()
+
+    if not assuntos:
+        print("\n❌ Essa matéria não possui assuntos cadastrados.")
+        conexao.close()
+        return
+
+    print("\n🧠 Assuntos:")
+
+    for assunto in assuntos:
+        print(f"{assunto[0]}. {assunto[1]}")
+
+    while True:
+
+        try:
+            assunto_id = int(
+                input("\nEscolha o assunto: ")
+            )
+
+            if any(a[0] == assunto_id for a in assuntos):
+                break
+
+            print("❌ Assunto inválido.")
+
+        except ValueError:
+            print("❌ Digite apenas o número do assunto.")
+
+    # ==============================
+    # PERGUNTA
+    # ==============================
+
+    pergunta = input("\n📝 Pergunta: ").strip()
+
+    while not pergunta:
+        print("❌ A pergunta não pode ficar vazia.")
+        pergunta = input("📝 Pergunta: ").strip()
+
+    # ==============================
+    # ALTERNATIVAS
+    # ==============================
+
+    alternativa_a = input("\nA) ").strip()
+    alternativa_b = input("B) ").strip()
+    alternativa_c = input("C) ").strip()
+    alternativa_d = input("D) ").strip()
+
+    # ==============================
+    # RESPOSTA CORRETA
+    # ==============================
+
+    while True:
+
+        correta = input(
+            "\n✅ Resposta correta (A/B/C/D): "
+        ).strip().upper()
+
+        if correta in ["A", "B", "C", "D"]:
+            break
+
+        print("❌ Digite A, B, C ou D.")
+
+    # ==============================
+    # EXPLICAÇÃO
+    # ==============================
+
+    explicacao = input(
+        "\n💡 Explicação: "
+    ).strip()
+
+    # ==============================
+    # DIFICULDADE
+    # ==============================
+
+    print("\n🎯 Dificuldade:")
+    print("1. 🟢 Fácil")
+    print("2. 🟡 Médio")
+    print("3. 🔴 Difícil")
+
+    while True:
+
+        dificuldade = input(
+            "\nEscolha a dificuldade: "
+        ).strip()
+
+        if dificuldade in ["1", "2", "3"]:
+            dificuldade = int(dificuldade)
+            break
+
+        print("❌ Escolha 1, 2 ou 3.")
+
+    # ==============================
+    # SALVAR
+    # ==============================
+
+    cursor.execute("""
+        INSERT INTO questoes (
+            materia_id,
+            assunto_id,
+            pergunta,
+            alternativa_a,
+            alternativa_b,
+            alternativa_c,
+            alternativa_d,
+            correta,
+            explicacao,
+            dificuldade
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        materia_id,
+        assunto_id,
+        pergunta,
+        alternativa_a,
+        alternativa_b,
+        alternativa_c,
+        alternativa_d,
+        correta,
+        explicacao,
+        dificuldade
+    ))
+
+    conexao.commit()
+    conexao.close()
+
+    print("\n" + "=" * 45)
+    print("✅ QUESTÃO CADASTRADA COM SUCESSO!")
+    print("=" * 45)
+
+
+# ==========================================
+# MENU
+# ==========================================
 def menu():
 
     while True:
@@ -778,7 +968,8 @@ def menu():
         print("3. 🧠 Revisão inteligente")
         print("4. 📖 Estudar ponto fraco")
         print("5. 🤖 Quiz adaptativo")
-        print("6. ❌ Sair")
+        print("6. ✏️ Cadastrar questão")
+        print("7. ❌ Sair")
 
         escolha = input(
             "\nEscolha uma opção: "
@@ -805,6 +996,10 @@ def menu():
             quiz_adaptativo()
 
         elif escolha == "6":
+
+            cadastrar_questao()
+
+        elif escolha == "7":
 
             print("\nAté a próxima! 👋")
             break
