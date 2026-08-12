@@ -1,0 +1,822 @@
+from database import conectar, criar_banco
+
+
+# ==========================================
+# BANCO DE DADOS
+# ==========================================
+
+criar_banco()
+
+
+# ==========================================
+# SALVAR RESPOSTA
+# ==========================================
+
+def salvar_resposta(questao_id, resposta, correta):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        INSERT INTO respostas (
+            questao_id,
+            resposta,
+            correta
+        )
+        VALUES (?, ?, ?)
+    """, (
+        questao_id,
+        resposta,
+        correta
+    ))
+
+    conexao.commit()
+    conexao.close()
+
+
+# ==========================================
+# MOSTRAR RESULTADO
+# ==========================================
+
+def mostrar_resultado(acertos, total):
+    print("\n" + "=" * 50)
+    print("              RESULTADO")
+    print("=" * 50)
+
+    if total == 0:
+        print("\nNenhuma questão respondida.")
+        return
+
+    porcentagem = (acertos / total) * 100
+
+    print(f"\n✅ Acertos: {acertos}")
+    print(f"❌ Erros: {total - acertos}")
+    print(f"📊 Aproveitamento: {porcentagem:.0f}%")
+
+    if porcentagem >= 80:
+        print("\n🎉 Excelente desempenho!")
+
+    elif porcentagem >= 60:
+        print("\n👍 Bom desempenho!")
+
+    else:
+        print("\n📚 Continue estudando esse assunto!")
+
+
+# ==========================================
+# BUSCAR QUESTÕES
+# ==========================================
+
+def buscar_questoes(materia_id=None, assunto_id=None, limite=10):
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    if assunto_id is not None:
+        cursor.execute("""
+            SELECT
+                id,
+                pergunta,
+                alternativa_a,
+                alternativa_b,
+                alternativa_c,
+                alternativa_d,
+                correta,
+                explicacao,
+                dificuldade
+            FROM questoes
+            WHERE assunto_id = ?
+            ORDER BY RANDOM()
+            LIMIT ?
+        """, (assunto_id, limite))
+
+    elif materia_id is not None:
+        cursor.execute("""
+            SELECT
+                id,
+                pergunta,
+                alternativa_a,
+                alternativa_b,
+                alternativa_c,
+                alternativa_d,
+                correta,
+                explicacao,
+                dificuldade
+            FROM questoes
+            WHERE materia_id = ?
+            ORDER BY RANDOM()
+            LIMIT ?
+        """, (materia_id, limite))
+
+    else:
+        cursor.execute("""
+            SELECT
+                id,
+                pergunta,
+                alternativa_a,
+                alternativa_b,
+                alternativa_c,
+                alternativa_d,
+                correta,
+                explicacao,
+                dificuldade
+            FROM questoes
+            ORDER BY RANDOM()
+            LIMIT ?
+        """, (limite,))
+
+    questoes = cursor.fetchall()
+
+    conexao.close()
+
+    return questoes
+
+
+# ==========================================
+# FAZER QUIZ
+# ==========================================
+
+def iniciar_quiz():
+    questoes = buscar_questoes(limite=10)
+
+    if not questoes:
+        print("\nNenhuma questão cadastrada.")
+        return
+
+    pontos = 0
+
+    print("\n" + "=" * 50)
+    print("                 🎯 QUIZ")
+    print("=" * 50)
+
+    for numero, questao in enumerate(questoes, 1):
+
+        (
+            questao_id,
+            pergunta,
+            a,
+            b,
+            c,
+            d,
+            correta,
+            explicacao,
+            dificuldade
+        ) = questao
+
+        print("\n" + "=" * 50)
+        print(f"Questão {numero}/{len(questoes)}")
+        print("=" * 50)
+
+        print(f"\n{pergunta}\n")
+
+        print(f"A) {a}")
+        print(f"B) {b}")
+        print(f"C) {c}")
+        print(f"D) {d}")
+
+        while True:
+            resposta = input("\nSua resposta: ").strip().upper()
+
+            if resposta in ["A", "B", "C", "D"]:
+                break
+
+            print("Digite apenas A, B, C ou D.")
+
+        if resposta == correta:
+            print("\n✅ CORRETO!")
+            pontos += 1
+            acertou = 1
+
+        else:
+            print("\n❌ INCORRETO!")
+            print(f"Resposta correta: {correta}")
+            print(f"💡 {explicacao}")
+            acertou = 0
+
+        salvar_resposta(
+            questao_id,
+            resposta,
+            acertou
+        )
+
+    mostrar_resultado(
+        pontos,
+        len(questoes)
+    )
+
+
+# ==========================================
+# DESEMPENHO
+# ==========================================
+
+def mostrar_desempenho():
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT
+            COUNT(*),
+            COALESCE(SUM(correta), 0)
+        FROM respostas
+    """)
+
+    total, acertos = cursor.fetchone()
+
+    print("\n" + "=" * 50)
+    print("              MEU DESEMPENHO")
+    print("=" * 50)
+
+    if total == 0:
+        print("\nVocê ainda não respondeu nenhuma questão.")
+        conexao.close()
+        return
+
+    porcentagem = (acertos / total) * 100
+
+    print(f"\n📝 Questões respondidas: {total}")
+    print(f"✅ Acertos: {acertos}")
+    print(f"📊 Aproveitamento geral: {porcentagem:.0f}%")
+
+    # ======================================
+    # POR MATÉRIA
+    # ======================================
+
+    print("\n" + "-" * 50)
+    print("📚 DESEMPENHO POR MATÉRIA")
+    print("-" * 50)
+
+    cursor.execute("""
+        SELECT
+            m.nome,
+            COUNT(r.id),
+            COALESCE(SUM(r.correta), 0)
+        FROM respostas r
+        JOIN questoes q ON r.questao_id = q.id
+        JOIN materias m ON q.materia_id = m.id
+        GROUP BY m.id
+        ORDER BY m.nome
+    """)
+
+    materias = cursor.fetchall()
+
+    for nome, total_materia, acertos_materia in materias:
+
+        aproveitamento = (
+            acertos_materia / total_materia
+        ) * 100
+
+        if aproveitamento >= 80:
+            indicador = "🟢"
+
+        elif aproveitamento >= 60:
+            indicador = "🟡"
+
+        else:
+            indicador = "🔴"
+
+        print(
+            f"\n{indicador} {nome}: "
+            f"{acertos_materia}/{total_materia} "
+            f"({aproveitamento:.0f}%)"
+        )
+
+    # ======================================
+    # POR ASSUNTO
+    # ======================================
+
+    print("\n" + "-" * 50)
+    print("🧠 DESEMPENHO POR ASSUNTO")
+    print("-" * 50)
+
+    cursor.execute("""
+        SELECT
+            m.nome,
+            a.nome,
+            COUNT(r.id),
+            COALESCE(SUM(r.correta), 0)
+        FROM respostas r
+        JOIN questoes q ON r.questao_id = q.id
+        JOIN materias m ON q.materia_id = m.id
+        JOIN assuntos a ON q.assunto_id = a.id
+        GROUP BY a.id
+        ORDER BY m.nome, a.nome
+    """)
+
+    assuntos = cursor.fetchall()
+
+    if not assuntos:
+        print("\nNenhum assunto possui respostas ainda.")
+
+    else:
+
+        materia_atual = None
+
+        for (
+            materia,
+            assunto,
+            total_assunto,
+            acertos_assunto
+        ) in assuntos:
+
+            if materia != materia_atual:
+                print(f"\n📚 {materia}")
+                materia_atual = materia
+
+            aproveitamento = (
+                acertos_assunto / total_assunto
+            ) * 100
+
+            if aproveitamento >= 80:
+                indicador = "🟢"
+
+            elif aproveitamento >= 60:
+                indicador = "🟡"
+
+            else:
+                indicador = "🔴"
+
+            print(
+                f"   {indicador} {assunto}: "
+                f"{acertos_assunto}/{total_assunto} "
+                f"({aproveitamento:.0f}%)"
+            )
+
+    # ======================================
+    # PONTO FRACO
+    # ======================================
+
+    cursor.execute("""
+        SELECT
+            a.nome,
+            COUNT(r.id),
+            COALESCE(SUM(r.correta), 0)
+        FROM respostas r
+        JOIN questoes q ON r.questao_id = q.id
+        JOIN assuntos a ON q.assunto_id = a.id
+        GROUP BY a.id
+        HAVING COUNT(r.id) >= 1
+        ORDER BY
+            CAST(SUM(r.correta) AS FLOAT) / COUNT(r.id) ASC
+        LIMIT 1
+    """)
+
+    pior = cursor.fetchone()
+
+    if pior:
+
+        assunto, total_pior, acertos_pior = pior
+
+        aproveitamento = (
+            acertos_pior / total_pior
+        ) * 100
+
+        print("\n" + "-" * 50)
+        print("🎯 RECOMENDAÇÃO")
+        print("-" * 50)
+
+        print(
+            f"\n🔴 {assunto} — "
+            f"{aproveitamento:.0f}%"
+        )
+
+        print(
+            "\n💡 Recomendação: revise esse assunto."
+        )
+
+    conexao.close()
+
+
+# ==========================================
+# ESTUDAR PONTO FRACO
+# ==========================================
+
+def estudar_ponto_fraco():
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT
+            a.id,
+            a.nome,
+            COUNT(r.id),
+            COALESCE(SUM(r.correta), 0)
+        FROM respostas r
+        JOIN questoes q ON r.questao_id = q.id
+        JOIN assuntos a ON q.assunto_id = a.id
+        GROUP BY a.id
+        HAVING COUNT(r.id) >= 1
+        ORDER BY
+            CAST(SUM(r.correta) AS FLOAT) / COUNT(r.id) ASC
+        LIMIT 1
+    """)
+
+    ponto_fraco = cursor.fetchone()
+
+    conexao.close()
+
+    if not ponto_fraco:
+        print("\nAinda não existem dados suficientes.")
+        print("Faça alguns quizzes primeiro.")
+        return
+
+    assunto_id = ponto_fraco[0]
+    assunto_nome = ponto_fraco[1]
+
+    print("\n" + "=" * 50)
+    print("          📖 ESTUDAR PONTO FRACO")
+    print("=" * 50)
+
+    print(f"\n🔴 Assunto: {assunto_nome}")
+
+    questoes = buscar_questoes(
+        assunto_id=assunto_id,
+        limite=10
+    )
+
+    if not questoes:
+        print("\nNão existem questões nesse assunto.")
+        return
+
+    pontos = 0
+
+    for numero, questao in enumerate(questoes, 1):
+
+        (
+            questao_id,
+            pergunta,
+            a,
+            b,
+            c,
+            d,
+            correta,
+            explicacao,
+            dificuldade
+        ) = questao
+
+        print("\n" + "=" * 50)
+        print(f"Questão {numero}/{len(questoes)}")
+        print("=" * 50)
+
+        print(f"\n{pergunta}\n")
+
+        print(f"A) {a}")
+        print(f"B) {b}")
+        print(f"C) {c}")
+        print(f"D) {d}")
+
+        while True:
+            resposta = input("\nSua resposta: ").strip().upper()
+
+            if resposta in ["A", "B", "C", "D"]:
+                break
+
+            print("Digite apenas A, B, C ou D.")
+
+        if resposta == correta:
+
+            print("\n✅ CORRETO!")
+            pontos += 1
+            acertou = 1
+
+        else:
+
+            print("\n❌ INCORRETO!")
+            print(f"Resposta correta: {correta}")
+            print(f"💡 {explicacao}")
+            acertou = 0
+
+        salvar_resposta(
+            questao_id,
+            resposta,
+            acertou
+        )
+
+    mostrar_resultado(
+        pontos,
+        len(questoes)
+    )
+
+
+# ==========================================
+# QUIZ ADAPTATIVO
+# ==========================================
+
+def quiz_adaptativo():
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT
+            a.id,
+            a.nome,
+            COUNT(r.id),
+            COALESCE(SUM(r.correta), 0)
+        FROM respostas r
+        JOIN questoes q ON r.questao_id = q.id
+        JOIN assuntos a ON q.assunto_id = a.id
+        GROUP BY a.id
+        HAVING COUNT(r.id) >= 1
+        ORDER BY
+            CAST(SUM(r.correta) AS FLOAT) / COUNT(r.id) ASC
+        LIMIT 1
+    """)
+
+    assunto = cursor.fetchone()
+
+    conexao.close()
+
+    if not assunto:
+        print("\nAinda não temos dados suficientes.")
+        print("Faça alguns quizzes primeiro.")
+        return
+
+    assunto_id = assunto[0]
+    assunto_nome = assunto[1]
+
+    nivel = 1
+    pontos = 0
+    total_questoes = 10
+
+    questoes_usadas = set()
+
+    print("\n" + "=" * 50)
+    print("             🤖 QUIZ ADAPTATIVO")
+    print("=" * 50)
+
+    print(f"\n🧠 Assunto: {assunto_nome}")
+    print("O nível será ajustado conforme suas respostas.")
+
+    for numero in range(1, total_questoes + 1):
+
+        conexao = conectar()
+        cursor = conexao.cursor()
+
+        cursor.execute("""
+            SELECT
+                id,
+                pergunta,
+                alternativa_a,
+                alternativa_b,
+                alternativa_c,
+                alternativa_d,
+                correta,
+                explicacao,
+                dificuldade
+            FROM questoes
+            WHERE assunto_id = ?
+            AND dificuldade = ?
+            ORDER BY RANDOM()
+        """, (
+            assunto_id,
+            nivel
+        ))
+
+        candidatos = cursor.fetchall()
+
+        # Remove questões já utilizadas
+        candidatos = [
+            q for q in candidatos
+            if q[0] not in questoes_usadas
+        ]
+
+        # Se não houver questões naquele nível,
+        # procura outras questões ainda não utilizadas
+        if not candidatos:
+
+            cursor.execute("""
+                SELECT
+                    id,
+                    pergunta,
+                    alternativa_a,
+                    alternativa_b,
+                    alternativa_c,
+                    alternativa_d,
+                    correta,
+                    explicacao,
+                    dificuldade
+                FROM questoes
+                WHERE assunto_id = ?
+                ORDER BY RANDOM()
+            """, (assunto_id,))
+
+            candidatos = [
+                q for q in cursor.fetchall()
+                if q[0] not in questoes_usadas
+            ]
+
+        conexao.close()
+
+        # Não existem mais questões novas
+        if not candidatos:
+
+            print("\n⚠️ Não existem mais questões diferentes nesse assunto.")
+
+            print(
+                f"\nVocê respondeu "
+                f"{len(questoes_usadas)} questão(ões)."
+            )
+
+            break
+
+        questao = candidatos[0]
+
+        questoes_usadas.add(questao[0])
+
+        (
+            questao_id,
+            pergunta,
+            a,
+            b,
+            c,
+            d,
+            correta,
+            explicacao,
+            dificuldade
+        ) = questao
+
+        niveis = {
+            1: "🟢 Fácil",
+            2: "🟡 Médio",
+            3: "🔴 Difícil"
+        }
+
+        print("\n" + "=" * 50)
+        print(f"Questão {numero}/{total_questoes}")
+        print(
+            f"Nível: {niveis.get(dificuldade, 'Desconhecido')}"
+        )
+        print("=" * 50)
+
+        print(f"\n{pergunta}\n")
+
+        print(f"A) {a}")
+        print(f"B) {b}")
+        print(f"C) {c}")
+        print(f"D) {d}")
+
+        while True:
+
+            resposta = input(
+                "\nSua resposta: "
+            ).strip().upper()
+
+            if resposta in ["A", "B", "C", "D"]:
+                break
+
+            print("Digite apenas A, B, C ou D.")
+
+        if resposta == correta:
+
+            print("\n✅ CORRETO!")
+
+            pontos += 1
+            acertou = 1
+
+            if nivel < 3:
+                nivel += 1
+
+        else:
+
+            print("\n❌ INCORRETO!")
+
+            print(f"Resposta correta: {correta}")
+            print(f"💡 {explicacao}")
+
+            acertou = 0
+
+            if nivel > 1:
+                nivel -= 1
+
+        salvar_resposta(
+            questao_id,
+            resposta,
+            acertou
+        )
+
+    mostrar_resultado(
+        pontos,
+        len(questoes_usadas)
+    )
+
+# ==========================================
+# REVISÃO INTELIGENTE
+# ==========================================
+
+def revisao_inteligente():
+    print("\n" + "=" * 50)
+    print("          🧠 REVISÃO INTELIGENTE")
+    print("=" * 50)
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT
+            q.id,
+            q.pergunta,
+            a.nome,
+            COUNT(r.id) AS tentativas,
+            COALESCE(SUM(r.correta), 0) AS acertos
+        FROM questoes q
+        JOIN assuntos a ON q.assunto_id = a.id
+        LEFT JOIN respostas r ON q.id = r.questao_id
+        GROUP BY q.id
+        HAVING tentativas > 0
+        ORDER BY
+            CAST(acertos AS FLOAT) / tentativas ASC
+        LIMIT 5
+    """)
+
+    questoes = cursor.fetchall()
+
+    conexao.close()
+
+    if not questoes:
+
+        print("\nAinda não existem questões suficientes para revisão.")
+        return
+
+    print("\n📌 Questões que merecem sua atenção:\n")
+
+    for numero, questao in enumerate(questoes, 1):
+
+        (
+            questao_id,
+            pergunta,
+            assunto,
+            tentativas,
+            acertos
+        ) = questao
+
+        aproveitamento = (
+            acertos / tentativas
+        ) * 100
+
+        print(f"{numero}. {assunto}")
+        print(f"   {pergunta}")
+        print(
+            f"   📊 Aproveitamento: "
+            f"{aproveitamento:.0f}%"
+        )
+        print()
+
+
+# ==========================================
+# MENU
+# ==========================================
+
+def menu():
+
+    while True:
+
+        print("\n")
+        print("=" * 45)
+        print("                 FACULQUIZ")
+        print("=" * 45)
+
+        print("\n1. 🎯 Fazer quiz")
+        print("2. 📊 Meu desempenho")
+        print("3. 🧠 Revisão inteligente")
+        print("4. 📖 Estudar ponto fraco")
+        print("5. 🤖 Quiz adaptativo")
+        print("6. ❌ Sair")
+
+        escolha = input(
+            "\nEscolha uma opção: "
+        ).strip()
+
+        if escolha == "1":
+
+            iniciar_quiz()
+
+        elif escolha == "2":
+
+            mostrar_desempenho()
+
+        elif escolha == "3":
+
+            revisao_inteligente()
+
+        elif escolha == "4":
+
+            estudar_ponto_fraco()
+
+        elif escolha == "5":
+
+            quiz_adaptativo()
+
+        elif escolha == "6":
+
+            print("\nAté a próxima! 👋")
+            break
+
+        else:
+
+            print("\n❌ Opção inválida.")
+
+
+# ==========================================
+# INICIAR PROGRAMA
+# ==========================================
+
+if __name__ == "__main__":
+    menu()
