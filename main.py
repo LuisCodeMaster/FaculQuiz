@@ -230,9 +230,11 @@ def mostrar_desempenho():
         return
 
     porcentagem = (acertos / total) * 100
+    erros = total - acertos
 
     print(f"\n📝 Questões respondidas: {total}")
     print(f"✅ Acertos: {acertos}")
+    print(f"❌ Erros: {erros}")
     print(f"📊 Aproveitamento geral: {porcentagem:.0f}%")
 
     # ======================================
@@ -340,6 +342,50 @@ def mostrar_desempenho():
             )
 
     # ======================================
+    # POR DIFICULDADE
+    # ======================================
+
+    print("\n" + "-" * 50)
+    print("🎯 DESEMPENHO POR DIFICULDADE")
+    print("-" * 50)
+
+    cursor.execute("""
+        SELECT
+            q.dificuldade,
+            COUNT(r.id),
+            COALESCE(SUM(r.correta), 0)
+        FROM respostas r
+        JOIN questoes q ON r.questao_id = q.id
+        GROUP BY q.dificuldade
+        ORDER BY q.dificuldade
+    """)
+
+    dificuldades = cursor.fetchall()
+
+    nomes_dificuldade = {
+        1: "🟢 Fácil",
+        2: "🟡 Médio",
+        3: "🔴 Difícil"
+    }
+
+    for dificuldade, total_dificuldade, acertos_dificuldade in dificuldades:
+
+        aproveitamento = (
+            acertos_dificuldade / total_dificuldade
+        ) * 100
+
+        nome = nomes_dificuldade.get(
+            dificuldade,
+            "Desconhecida"
+        )
+
+        print(
+            f"\n{nome}: "
+            f"{acertos_dificuldade}/{total_dificuldade} "
+            f"({aproveitamento:.0f}%)"
+        )
+
+    # ======================================
     # PONTO FRACO
     # ======================================
 
@@ -352,7 +398,7 @@ def mostrar_desempenho():
         JOIN questoes q ON r.questao_id = q.id
         JOIN assuntos a ON q.assunto_id = a.id
         GROUP BY a.id
-        HAVING COUNT(r.id) >= 1
+        HAVING COUNT(r.id) >= 3
         ORDER BY
             CAST(SUM(r.correta) AS FLOAT) / COUNT(r.id) ASC
         LIMIT 1
@@ -372,13 +418,30 @@ def mostrar_desempenho():
         print("🎯 RECOMENDAÇÃO")
         print("-" * 50)
 
+        if aproveitamento >= 80:
+            indicador = "🟢"
+            recomendacao = "Você está indo muito bem neste assunto!"
+
+        elif aproveitamento >= 60:
+           indicador = "🟡"
+           recomendacao = "Continue praticando este assunto."
+
+        else:
+            indicador = "🔴"
+            recomendacao = "Revise este assunto antes de continuar."
+
         print(
-            f"\n🔴 {assunto} — "
+            f"\n{indicador} {assunto} — "
             f"{aproveitamento:.0f}%"
         )
 
         print(
-            "\n💡 Recomendação: revise esse assunto."
+            f"Você acertou {acertos_pior} "
+            f"de {total_pior} questões."
+        )
+
+        print(
+            f"\n💡 Recomendação: {recomendacao}"
         )
 
     conexao.close()
@@ -402,7 +465,7 @@ def estudar_ponto_fraco():
         JOIN questoes q ON r.questao_id = q.id
         JOIN assuntos a ON q.assunto_id = a.id
         GROUP BY a.id
-        HAVING COUNT(r.id) >= 1
+        HAVING COUNT(r.id) >= 3
         ORDER BY
             CAST(SUM(r.correta) AS FLOAT) / COUNT(r.id) ASC
         LIMIT 1
