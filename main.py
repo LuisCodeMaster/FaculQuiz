@@ -550,6 +550,8 @@ def quiz_adaptativo():
         conexao = conectar()
         cursor = conexao.cursor()
 
+        # Primeiro tenta encontrar questões
+        # do nível atual que ainda não foram usadas.
         cursor.execute("""
             SELECT
                 id,
@@ -563,23 +565,20 @@ def quiz_adaptativo():
                 dificuldade
             FROM questoes
             WHERE assunto_id = ?
-            AND dificuldade = ?
+              AND dificuldade = ?
             ORDER BY RANDOM()
-        """, (
-            assunto_id,
-            nivel
-        ))
+        """, (assunto_id, nivel))
 
         candidatos = cursor.fetchall()
 
-        # Remove questões já utilizadas
         candidatos = [
-            q for q in candidatos
-            if q[0] not in questoes_usadas
+            questao
+            for questao in candidatos
+            if questao[0] not in questoes_usadas
         ]
 
-        # Se não houver questões naquele nível,
-        # procura outras questões ainda não utilizadas
+        # Se não houver questões disponíveis
+        # no nível atual, procura em qualquer nível.
         if not candidatos:
 
             cursor.execute("""
@@ -599,13 +598,15 @@ def quiz_adaptativo():
             """, (assunto_id,))
 
             candidatos = [
-                q for q in cursor.fetchall()
-                if q[0] not in questoes_usadas
+                questao
+                for questao in cursor.fetchall()
+                if questao[0] not in questoes_usadas
             ]
 
         conexao.close()
 
-        # Não existem mais questões novas
+        # Se todas as questões já foram usadas,
+        # encerra o quiz.
         if not candidatos:
 
             print("\n⚠️ Não existem mais questões diferentes nesse assunto.")
@@ -617,6 +618,7 @@ def quiz_adaptativo():
 
             break
 
+        # Escolhe uma questão aleatória ainda não utilizada.
         questao = candidatos[0]
 
         questoes_usadas.add(questao[0])
@@ -671,6 +673,7 @@ def quiz_adaptativo():
             pontos += 1
             acertou = 1
 
+            # Acertou → aumenta a dificuldade.
             if nivel < 3:
                 nivel += 1
 
@@ -683,6 +686,7 @@ def quiz_adaptativo():
 
             acertou = 0
 
+            # Errou → diminui a dificuldade.
             if nivel > 1:
                 nivel -= 1
 
@@ -696,7 +700,6 @@ def quiz_adaptativo():
         pontos,
         len(questoes_usadas)
     )
-
 # ==========================================
 # REVISÃO INTELIGENTE
 # ==========================================
@@ -819,7 +822,7 @@ def cadastrar_questao():
         SELECT id, nome
         FROM assuntos
         WHERE materia_id = ?
-        ORDER BY nome
+        ORDER BY id
     """, (materia_id,))
 
     assuntos = cursor.fetchall()
