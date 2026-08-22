@@ -362,11 +362,159 @@ def excluir_disciplina():
 # FAZER QUIZ
 # ==========================================
 
-def iniciar_quiz():
-    questoes = buscar_questoes(limite=10)
+# ==========================================
+# ESCOLHER DISCIPLINA PARA O QUIZ
+# ==========================================
+
+def escolher_disciplina_quiz():
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT id, nome
+        FROM materias
+        ORDER BY nome
+    """)
+
+    materias = cursor.fetchall()
+
+    conexao.close()
+
+    print("\n" + "=" * 50)
+    print("              INICIAR QUIZ")
+    print("=" * 50)
+
+    print("\n0. Todas as disciplinas")
+
+    for materia_id, nome in materias:
+        print(f"{materia_id}. {nome}")
+
+    while True:
+
+        try:
+
+            escolha = int(
+                input("\nEscolha a disciplina: ")
+            )
+
+            if escolha == 0:
+                iniciar_quiz()
+
+                return
+
+            if any(
+                materia[0] == escolha
+                for materia in materias
+            ):
+                escolher_assunto_quiz(escolha)
+
+                return
+
+            print("❌ Disciplina inválida.")
+
+        except ValueError:
+
+            print("❌ Digite apenas o número da disciplina.")
+
+
+# ==========================================
+# ESCOLHER ASSUNTO PARA O QUIZ
+# ==========================================
+
+def escolher_assunto_quiz(materia_id):
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT nome
+        FROM materias
+        WHERE id = ?
+    """, (materia_id,))
+
+    materia = cursor.fetchone()
+
+    cursor.execute("""
+        SELECT id, nome
+        FROM assuntos
+        WHERE materia_id = ?
+        ORDER BY nome
+    """, (materia_id,))
+
+    assuntos = cursor.fetchall()
+
+    conexao.close()
+
+    if not materia:
+        print("\n❌ Disciplina não encontrada.")
+        return
+
+    print("\n" + "=" * 50)
+    print(f"              {materia[0]}")
+    print("=" * 50)
+
+    print("\n0. Todos os assuntos")
+
+    for assunto_id, nome in assuntos:
+        print(f"{assunto_id}. {nome}")
+
+    while True:
+
+        try:
+
+            escolha = int(
+                input("\nEscolha o assunto: ")
+            )
+
+            if escolha == 0:
+
+                iniciar_quiz(
+                    materia_id=materia_id
+                )
+
+                return
+
+            if any(
+                assunto[0] == escolha
+                for assunto in assuntos
+            ):
+
+                iniciar_quiz(
+                    materia_id=materia_id,
+                    assunto_id=escolha
+                )
+
+                return
+
+            print("❌ Assunto inválido.")
+
+        except ValueError:
+
+            print("❌ Digite apenas o número do assunto.")
+
+
+# ==========================================
+# FAZER QUIZ
+# ==========================================
+
+def iniciar_quiz(materia_id=None, assunto_id=None):
+
+    questoes = buscar_questoes(
+        materia_id=materia_id,
+        assunto_id=assunto_id,
+        limite=10
+    )
 
     if not questoes:
-        print("\nNenhuma questão cadastrada.")
+
+        print("\n❌ Nenhuma questão encontrada.")
+
+        print(
+            "Cadastre questões para essa "
+            "disciplina/assunto primeiro."
+        )
+
         return
 
     pontos = 0
@@ -375,7 +523,10 @@ def iniciar_quiz():
     print("                 🎯 QUIZ")
     print("=" * 50)
 
-    for numero, questao in enumerate(questoes, 1):
+    for numero, questao in enumerate(
+        questoes,
+        1
+    ):
 
         (
             questao_id,
@@ -390,7 +541,9 @@ def iniciar_quiz():
         ) = questao
 
         print("\n" + "=" * 50)
-        print(f"Questão {numero}/{len(questoes)}")
+        print(
+            f"Questão {numero}/{len(questoes)}"
+        )
         print("=" * 50)
 
         print(f"\n{pergunta}\n")
@@ -401,22 +554,41 @@ def iniciar_quiz():
         print(f"D) {d}")
 
         while True:
-            resposta = input("\nSua resposta: ").strip().upper()
 
-            if resposta in ["A", "B", "C", "D"]:
+            resposta = input(
+                "\nSua resposta: "
+            ).strip().upper()
+
+            if resposta in [
+                "A",
+                "B",
+                "C",
+                "D"
+            ]:
                 break
 
-            print("Digite apenas A, B, C ou D.")
+            print(
+                "Digite apenas A, B, C ou D."
+            )
 
         if resposta == correta:
+
             print("\n✅ CORRETO!")
+
             pontos += 1
             acertou = 1
 
         else:
+
             print("\n❌ INCORRETO!")
-            print(f"Resposta correta: {correta}")
-            print(f"💡 {explicacao}")
+
+            print(
+                f"Resposta correta: {correta}"
+            )
+
+            if explicacao:
+                print(f"💡 {explicacao}")
+
             acertou = 0
 
         salvar_resposta(
@@ -1728,7 +1900,7 @@ def menu():
 
         if escolha == "1":
 
-            iniciar_quiz()
+            escolher_disciplina_quiz()
 
         elif escolha == "2":
 
