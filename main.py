@@ -1,3 +1,5 @@
+import sqlite3
+
 from database import conectar, criar_banco
 
 
@@ -128,6 +130,232 @@ def buscar_questoes(materia_id=None, assunto_id=None, limite=10):
     conexao.close()
 
     return questoes
+
+
+# ==========================================
+# LISTAR DISCIPLINAS
+# ==========================================
+
+def listar_disciplinas():
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT id, nome
+        FROM materias
+        ORDER BY nome
+    """)
+
+    disciplinas = cursor.fetchall()
+
+    conexao.close()
+
+    print("\n" + "=" * 45)
+    print("             DISCIPLINAS")
+    print("=" * 45)
+
+    if not disciplinas:
+
+        print("\nNenhuma disciplina cadastrada.")
+        return
+
+    for id_disciplina, nome in disciplinas:
+
+        print(f"{id_disciplina}. {nome}")
+
+    input("\nPressione Enter para continuar...")
+
+
+
+# ==========================================
+# EDITAR DISCIPLINA
+# ==========================================
+
+def editar_disciplina():
+
+    listar_disciplinas()
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT id, nome
+        FROM materias
+        ORDER BY nome
+    """)
+
+    disciplinas = cursor.fetchall()
+
+    if not disciplinas:
+
+        conexao.close()
+        return
+
+    while True:
+
+        try:
+
+            disciplina_id = int(
+                input("\nID da disciplina que deseja editar: ")
+            )
+
+            if any(d[0] == disciplina_id for d in disciplinas):
+                break
+
+            print("❌ ID inválido.")
+
+        except ValueError:
+
+            print("❌ Digite apenas um número.")
+
+    novo_nome = input(
+        "\nNovo nome da disciplina: "
+    ).strip()
+
+    if not novo_nome:
+
+        print("\n❌ O nome não pode ficar vazio.")
+        conexao.close()
+        return
+
+    try:
+
+        cursor.execute("""
+            UPDATE materias
+            SET nome = ?
+            WHERE id = ?
+        """, (novo_nome, disciplina_id))
+
+        conexao.commit()
+
+        print("\n✅ Disciplina atualizada com sucesso!")
+
+    except sqlite3.IntegrityError:
+
+        print("\n❌ Já existe uma disciplina com esse nome.")
+
+    finally:
+
+        conexao.close()
+
+
+# ==========================================
+# EXCLUIR DISCIPLINA
+# ==========================================
+
+def excluir_disciplina():
+
+    listar_disciplinas()
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT id, nome
+        FROM materias
+        ORDER BY nome
+    """)
+
+    disciplinas = cursor.fetchall()
+
+    if not disciplinas:
+
+        conexao.close()
+        return
+
+    while True:
+
+        try:
+
+            disciplina_id = int(
+                input("\nID da disciplina que deseja excluir: ")
+            )
+
+            disciplina = next(
+                (
+                    d for d in disciplinas
+                    if d[0] == disciplina_id
+                ),
+                None
+            )
+
+            if disciplina:
+                break
+
+            print("❌ ID inválido.")
+
+        except ValueError:
+
+            print("❌ Digite apenas um número.")
+
+    nome = disciplina[1]
+
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM questoes
+        WHERE materia_id = ?
+    """, (disciplina_id,))
+
+    quantidade_questoes = cursor.fetchone()[0]
+
+    if quantidade_questoes > 0:
+
+        print(
+            f"\n❌ Não é possível excluir '{nome}'."
+        )
+
+        print(
+            f"Ela possui {quantidade_questoes} questão(ões) cadastrada(s)."
+        )
+
+        print(
+            "\nRemova ou transfira as questões antes de excluir a disciplina."
+        )
+
+        conexao.close()
+        return
+
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM assuntos
+        WHERE materia_id = ?
+    """, (disciplina_id,))
+
+    quantidade_assuntos = cursor.fetchone()[0]
+
+    if quantidade_assuntos > 0:
+
+        print(
+            f"\n❌ Não é possível excluir '{nome}'."
+        )
+
+        print(
+            f"Ela possui {quantidade_assuntos} assunto(s) cadastrado(s)."
+        )
+
+        conexao.close()
+        return
+
+    confirmacao = input(
+        f"\nTem certeza que deseja excluir '{nome}'? (S/N): "
+    ).strip().upper()
+
+    if confirmacao != "S":
+
+        print("\nOperação cancelada.")
+        conexao.close()
+        return
+
+    cursor.execute("""
+        DELETE FROM materias
+        WHERE id = ?
+    """, (disciplina_id,))
+
+    conexao.commit()
+    conexao.close()
+
+    print("\n✅ Disciplina excluída com sucesso!")
 
 
 # ==========================================
@@ -825,6 +1053,82 @@ def revisao_inteligente():
         )
         print()
 
+# ==========================================
+# GERENCIAR DISCIPLINAS
+# ==========================================
+
+def gerenciar_disciplinas():
+
+    while True:
+
+        print("\n")
+        print("=" * 45)
+        print("             DISCIPLINAS")
+        print("=" * 45)
+
+        print("\n1. Criar disciplina")
+        print("2. Listar disciplinas")
+        print("3. Editar disciplina")
+        print("4. Excluir disciplina")
+        print("5. Voltar")
+
+        escolha = input("\nEscolha uma opção: ").strip()
+
+        if escolha == "1":
+            criar_disciplina()
+
+        elif escolha == "2":
+            listar_disciplinas()
+
+        elif escolha == "3":
+            editar_disciplina()
+
+        elif escolha == "4":
+            excluir_disciplina()
+
+        elif escolha == "5":
+            break
+
+        else:
+            print("\n❌ Opção inválida.")
+
+# ==========================================
+# CRIAR DISCIPLINA
+# ==========================================
+
+def criar_disciplina():
+
+    print("\n" + "=" * 45)
+    print("           CRIAR DISCIPLINA")
+    print("=" * 45)
+
+    nome = input("\nNome da disciplina: ").strip()
+
+    if not nome:
+        print("\n❌ O nome não pode ficar vazio.")
+        return
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    try:
+
+        cursor.execute("""
+            INSERT INTO materias (nome)
+            VALUES (?)
+        """, (nome,))
+
+        conexao.commit()
+
+        print("\n✅ Disciplina criada com sucesso!")
+
+    except sqlite3.IntegrityError:
+
+        print("\n❌ Essa disciplina já existe.")
+
+    finally:
+
+        conexao.close()
 
 # ==========================================
 # CADASTRAR QUESTÕES
@@ -1035,6 +1339,7 @@ def menu():
         print("4. 📖 Estudar ponto fraco")
         print("5. 🤖 Quiz adaptativo")
         print("6. ✏️ Cadastrar questão")
+        print("7. 📚 Disciplinas")
         print("7. ❌ Sair")
 
         escolha = input(
@@ -1066,6 +1371,10 @@ def menu():
             cadastrar_questao()
 
         elif escolha == "7":
+
+            gerenciar_disciplinas()
+
+        elif escolha == "8":
 
             print("\nAté a próxima! 👋")
             break

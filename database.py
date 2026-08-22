@@ -66,5 +66,6 @@ def criar_banco():
         )
     """)
 
+
     conexao.commit()
     conexao.close()
