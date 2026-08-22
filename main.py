@@ -32,7 +32,7 @@ def salvar_resposta(questao_id, resposta, correta):
     ))
 
     conexao.commit()
-    conexao.close()
+    
 
 
 # ==========================================
@@ -604,12 +604,21 @@ def iniciar_quiz(materia_id=None, assunto_id=None):
 
 
 # ==========================================
-# DESEMPENHO
+# MEU DESEMPENHO
 # ==========================================
 
 def mostrar_desempenho():
+
     conexao = conectar()
     cursor = conexao.cursor()
+
+    print("\n" + "=" * 50)
+    print("              MEU DESEMPENHO")
+    print("=" * 50)
+
+    # ======================================
+    # DESEMPENHO GERAL
+    # ======================================
 
     cursor.execute("""
         SELECT
@@ -620,126 +629,201 @@ def mostrar_desempenho():
 
     total, acertos = cursor.fetchone()
 
-    print("\n" + "=" * 50)
-    print("              MEU DESEMPENHO")
-    print("=" * 50)
-
     if total == 0:
+
         print("\nVocê ainda não respondeu nenhuma questão.")
+
         conexao.close()
         return
 
-    porcentagem = (acertos / total) * 100
+    porcentagem = (
+        acertos / total
+    ) * 100
+
     erros = total - acertos
 
-    print(f"\n📝 Questões respondidas: {total}")
+    print("\n📊 DESEMPENHO GERAL")
+    print("-" * 50)
+
+    print(f"\nQuestões respondidas: {total}")
     print(f"✅ Acertos: {acertos}")
     print(f"❌ Erros: {erros}")
-    print(f"📊 Aproveitamento geral: {porcentagem:.0f}%")
+    print(
+        f"📈 Aproveitamento: "
+        f"{porcentagem:.0f}%"
+    )
 
     # ======================================
-    # POR MATÉRIA
+    # DESEMPENHO POR DISCIPLINA
     # ======================================
 
-    print("\n" + "-" * 50)
-    print("📚 DESEMPENHO POR MATÉRIA")
-    print("-" * 50)
+    print("\n" + "=" * 50)
+    print("           POR DISCIPLINA")
+    print("=" * 50)
 
     cursor.execute("""
         SELECT
+            m.id,
             m.nome,
             COUNT(r.id),
             COALESCE(SUM(r.correta), 0)
         FROM respostas r
-        JOIN questoes q ON r.questao_id = q.id
-        JOIN materias m ON q.materia_id = m.id
+        JOIN questoes q
+            ON r.questao_id = q.id
+        JOIN materias m
+            ON q.materia_id = m.id
         GROUP BY m.id
         ORDER BY m.nome
     """)
 
-    materias = cursor.fetchall()
+    disciplinas = cursor.fetchall()
 
-    for nome, total_materia, acertos_materia in materias:
+    if not disciplinas:
 
-        aproveitamento = (
-            acertos_materia / total_materia
-        ) * 100
-
-        if aproveitamento >= 80:
-            indicador = "🟢"
-
-        elif aproveitamento >= 60:
-            indicador = "🟡"
-
-        else:
-            indicador = "🔴"
-
-        print(
-            f"\n{indicador} {nome}: "
-            f"{acertos_materia}/{total_materia} "
-            f"({aproveitamento:.0f}%)"
-        )
-
-    # ======================================
-    # POR ASSUNTO
-    # ======================================
-
-    print("\n" + "-" * 50)
-    print("🧠 DESEMPENHO POR ASSUNTO")
-    print("-" * 50)
-
-    cursor.execute("""
-        SELECT
-            m.nome,
-            a.nome,
-            COUNT(r.id),
-            COALESCE(SUM(r.correta), 0)
-        FROM respostas r
-        JOIN questoes q ON r.questao_id = q.id
-        JOIN materias m ON q.materia_id = m.id
-        JOIN assuntos a ON q.assunto_id = a.id
-        GROUP BY a.id
-        ORDER BY m.nome, a.nome
-    """)
-
-    assuntos = cursor.fetchall()
-
-    if not assuntos:
-        print("\nNenhum assunto possui respostas ainda.")
+        print("\nNenhuma disciplina possui respostas ainda.")
 
     else:
 
-        materia_atual = None
-
         for (
-            materia,
-            assunto,
-            total_assunto,
-            acertos_assunto
-        ) in assuntos:
-
-            if materia != materia_atual:
-                print(f"\n📚 {materia}")
-                materia_atual = materia
+            materia_id,
+            materia_nome,
+            total_materia,
+            acertos_materia
+        ) in disciplinas:
 
             aproveitamento = (
-                acertos_assunto / total_assunto
+                acertos_materia /
+                total_materia
             ) * 100
 
             if aproveitamento >= 80:
+
                 indicador = "🟢"
 
             elif aproveitamento >= 60:
+
                 indicador = "🟡"
 
             else:
+
                 indicador = "🔴"
 
             print(
-                f"   {indicador} {assunto}: "
-                f"{acertos_assunto}/{total_assunto} "
+                f"\n{indicador} {materia_nome}"
+            )
+
+            print(
+                f"   {acertos_materia}/"
+                f"{total_materia} "
                 f"({aproveitamento:.0f}%)"
             )
+
+            # ==================================
+            # ASSUNTOS DA DISCIPLINA
+            # ==================================
+
+            cursor.execute("""
+                SELECT
+                    a.id,
+                    a.nome,
+                    COUNT(r.id),
+                    COALESCE(SUM(r.correta), 0)
+                FROM respostas r
+                JOIN questoes q
+                    ON r.questao_id = q.id
+                JOIN assuntos a
+                    ON q.assunto_id = a.id
+                WHERE q.materia_id = ?
+                GROUP BY a.id
+                ORDER BY a.nome
+            """, (materia_id,))
+
+            assuntos = cursor.fetchall()
+
+            for (
+                assunto_id,
+                assunto_nome,
+                total_assunto,
+                acertos_assunto
+            ) in assuntos:
+
+                aproveitamento_assunto = (
+                    acertos_assunto /
+                    total_assunto
+                ) * 100
+
+                if aproveitamento_assunto >= 80:
+
+                    indicador_assunto = "🟢"
+
+                elif aproveitamento_assunto >= 60:
+
+                    indicador_assunto = "🟡"
+
+                else:
+
+                    indicador_assunto = "🔴"
+
+                print(
+                    f"      {indicador_assunto} "
+                    f"{assunto_nome}: "
+                    f"{acertos_assunto}/"
+                    f"{total_assunto} "
+                    f"({aproveitamento_assunto:.0f}%)"
+                )
+
+    # ======================================
+    # DESEMPENHO POR DIFICULDADE
+    # ======================================
+
+    print("\n" + "=" * 50)
+    print("          POR DIFICULDADE")
+    print("=" * 50)
+
+    cursor.execute("""
+        SELECT
+            q.dificuldade,
+            COUNT(r.id),
+            COALESCE(SUM(r.correta), 0)
+        FROM respostas r
+        JOIN questoes q
+            ON r.questao_id = q.id
+        GROUP BY q.dificuldade
+        ORDER BY q.dificuldade
+    """)
+
+    dificuldades = cursor.fetchall()
+
+    nomes_dificuldade = {
+        1: "🟢 Fácil",
+        2: "🟡 Médio",
+        3: "🔴 Difícil"
+    }
+
+    for (
+        dificuldade,
+        total_dificuldade,
+        acertos_dificuldade
+    ) in dificuldades:
+
+        aproveitamento = (
+            acertos_dificuldade /
+            total_dificuldade
+        ) * 100
+
+        nome = nomes_dificuldade.get(
+            dificuldade,
+            "Desconhecida"
+        )
+
+        print(
+            f"\n{nome}: "
+            f"{acertos_dificuldade}/"
+            f"{total_dificuldade} "
+            f"({aproveitamento:.0f}%)"
+        )
+
+    
 
     # ======================================
     # POR DIFICULDADE
