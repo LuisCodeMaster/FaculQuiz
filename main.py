@@ -1131,6 +1131,385 @@ def criar_disciplina():
         conexao.close()
 
 # ==========================================
+# GERENCIAR ASSUNTOS
+# ==========================================
+
+def gerenciar_assuntos():
+
+    while True:
+
+        print("\n")
+        print("=" * 45)
+        print("              ASSUNTOS")
+        print("=" * 45)
+
+        print("\n1. Criar assunto")
+        print("2. Listar assuntos")
+        print("3. Editar assunto")
+        print("4. Excluir assunto")
+        print("5. Voltar")
+
+        escolha = input("\nEscolha uma opção: ").strip()
+
+        if escolha == "1":
+            criar_assunto()
+
+        elif escolha == "2":
+            listar_assuntos()
+
+        elif escolha == "3":
+            editar_assunto()
+
+        elif escolha == "4":
+            excluir_assunto()
+
+        elif escolha == "5":
+            break
+
+        else:
+            print("\n❌ Opção inválida.")
+
+# ==========================================
+# CRIAR ASSUNTO
+# ==========================================
+
+def criar_assunto():
+
+    print("\n" + "=" * 45)
+    print("             CRIAR ASSUNTO")
+    print("=" * 45)
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT id, nome
+        FROM materias
+        ORDER BY nome
+    """)
+
+    materias = cursor.fetchall()
+
+    if not materias:
+        print("\n❌ Nenhuma disciplina cadastrada.")
+        print("Crie uma disciplina primeiro.")
+        conexao.close()
+        return
+
+    print("\n📚 Disciplinas:")
+
+    for materia_id, nome in materias:
+        print(f"{materia_id}. {nome}")
+
+    while True:
+
+        try:
+
+            materia_id = int(
+                input("\nEscolha a disciplina: ")
+            )
+
+            if any(
+                materia[0] == materia_id
+                for materia in materias
+            ):
+                break
+
+            print("❌ Disciplina inválida.")
+
+        except ValueError:
+
+            print("❌ Digite apenas o número da disciplina.")
+
+    nome = input("\nNome do assunto: ").strip()
+
+    if not nome:
+        print("\n❌ O nome do assunto não pode ficar vazio.")
+        conexao.close()
+        return
+
+    try:
+
+        cursor.execute("""
+            INSERT INTO assuntos (
+                materia_id,
+                nome
+            )
+            VALUES (?, ?)
+        """, (
+            materia_id,
+            nome
+        ))
+
+        conexao.commit()
+
+        print("\n✅ Assunto criado com sucesso!")
+
+    except sqlite3.IntegrityError:
+
+        print("\n❌ Esse assunto já existe nessa disciplina.")
+
+    finally:
+
+        conexao.close()
+
+
+# ==========================================
+# LISTAR ASSUNTOS
+# ==========================================
+
+def listar_assuntos():
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT
+            a.id,
+            a.nome,
+            m.nome
+        FROM assuntos a
+        JOIN materias m
+            ON a.materia_id = m.id
+        ORDER BY m.nome, a.nome
+    """)
+
+    assuntos = cursor.fetchall()
+
+    conexao.close()
+
+    print("\n" + "=" * 45)
+    print("              ASSUNTOS")
+    print("=" * 45)
+
+    if not assuntos:
+
+        print("\nNenhum assunto cadastrado.")
+        return
+
+    materia_atual = None
+
+    for assunto_id, assunto_nome, materia_nome in assuntos:
+
+        if materia_nome != materia_atual:
+
+            print(f"\n📚 {materia_nome}")
+            materia_atual = materia_nome
+
+        print(
+            f"   {assunto_id}. {assunto_nome}"
+        )
+
+    input("\nPressione Enter para continuar...")
+
+# ==========================================
+# EDITAR ASSUNTO
+# ==========================================
+
+def editar_assunto():
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT
+            a.id,
+            a.nome,
+            m.nome
+        FROM assuntos a
+        JOIN materias m
+            ON a.materia_id = m.id
+        ORDER BY m.nome, a.nome
+    """)
+
+    assuntos = cursor.fetchall()
+
+    if not assuntos:
+
+        print("\nNenhum assunto cadastrado.")
+        conexao.close()
+        return
+
+    print("\n" + "=" * 45)
+    print("              ASSUNTOS")
+    print("=" * 45)
+
+    for assunto_id, assunto_nome, materia_nome in assuntos:
+
+        print(
+            f"{assunto_id}. {assunto_nome} "
+            f"({materia_nome})"
+        )
+
+    while True:
+
+        try:
+
+            assunto_id = int(
+                input("\nID do assunto que deseja editar: ")
+            )
+
+            if any(
+                assunto[0] == assunto_id
+                for assunto in assuntos
+            ):
+                break
+
+            print("❌ ID inválido.")
+
+        except ValueError:
+
+            print("❌ Digite apenas um número.")
+
+    novo_nome = input(
+        "\nNovo nome do assunto: "
+    ).strip()
+
+    if not novo_nome:
+
+        print("\n❌ O nome não pode ficar vazio.")
+        conexao.close()
+        return
+
+    try:
+
+        cursor.execute("""
+            UPDATE assuntos
+            SET nome = ?
+            WHERE id = ?
+        """, (
+            novo_nome,
+            assunto_id
+        ))
+
+        conexao.commit()
+
+        print("\n✅ Assunto atualizado com sucesso!")
+
+    except sqlite3.IntegrityError:
+
+        print(
+            "\n❌ Já existe esse assunto nessa disciplina."
+        )
+
+    finally:
+
+        conexao.close()
+
+    # ==========================================
+# EXCLUIR ASSUNTO
+# ==========================================
+
+def excluir_assunto():
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT
+            a.id,
+            a.nome,
+            m.nome
+        FROM assuntos a
+        JOIN materias m
+            ON a.materia_id = m.id
+        ORDER BY m.nome, a.nome
+    """)
+
+    assuntos = cursor.fetchall()
+
+    if not assuntos:
+
+        print("\nNenhum assunto cadastrado.")
+        conexao.close()
+        return
+
+    print("\n" + "=" * 45)
+    print("              ASSUNTOS")
+    print("=" * 45)
+
+    for assunto_id, assunto_nome, materia_nome in assuntos:
+
+        print(
+            f"{assunto_id}. {assunto_nome} "
+            f"({materia_nome})"
+        )
+
+    while True:
+
+        try:
+
+            assunto_id = int(
+                input("\nID do assunto que deseja excluir: ")
+            )
+
+            assunto = next(
+                (
+                    a for a in assuntos
+                    if a[0] == assunto_id
+                ),
+                None
+            )
+
+            if assunto:
+                break
+
+            print("❌ ID inválido.")
+
+        except ValueError:
+
+            print("❌ Digite apenas um número.")
+
+    assunto_nome = assunto[1]
+
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM questoes
+        WHERE assunto_id = ?
+    """, (assunto_id,))
+
+    quantidade_questoes = cursor.fetchone()[0]
+
+    if quantidade_questoes > 0:
+
+        print(
+            f"\n❌ Não é possível excluir '{assunto_nome}'."
+        )
+
+        print(
+            f"Existem {quantidade_questoes} "
+            f"questão(ões) vinculada(s) a ele."
+        )
+
+        print(
+            "\nRemova ou altere as questões primeiro."
+        )
+
+        conexao.close()
+        return
+
+    confirmacao = input(
+        f"\nTem certeza que deseja excluir "
+        f"'{assunto_nome}'? (S/N): "
+    ).strip().upper()
+
+    if confirmacao != "S":
+
+        print("\nOperação cancelada.")
+        conexao.close()
+        return
+
+    cursor.execute("""
+        DELETE FROM assuntos
+        WHERE id = ?
+    """, (assunto_id,))
+
+    conexao.commit()
+    conexao.close()
+
+    print("\n✅ Assunto excluído com sucesso!")
+
+# ==========================================
 # CADASTRAR QUESTÕES
 # ==========================================
 
@@ -1340,7 +1719,8 @@ def menu():
         print("5. 🤖 Quiz adaptativo")
         print("6. ✏️ Cadastrar questão")
         print("7. 📚 Disciplinas")
-        print("7. ❌ Sair")
+        print("8. 📖 Assuntos")
+        print("9. ❌ Sair")
 
         escolha = input(
             "\nEscolha uma opção: "
@@ -1376,8 +1756,12 @@ def menu():
 
         elif escolha == "8":
 
-            print("\nAté a próxima! 👋")
-            break
+            gerenciar_assuntos()
+
+        elif escolha == "9":
+
+             print("\nAté a próxima! 👋")
+             break
 
         else:
 
