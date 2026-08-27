@@ -1205,10 +1205,19 @@ def gerenciar_temas():
 # QUIZ TEMÁTICO
 # ==========================================
 
+
 def quiz_tematico():
+
+    print("\n" + "=" * 50)
+    print("              🎭 QUIZ TEMÁTICO")
+    print("=" * 50)
 
     conexao = conectar()
     cursor = conexao.cursor()
+
+    # ==========================================
+    # BUSCAR TEMAS
+    # ==========================================
 
     cursor.execute("""
         SELECT id, nome
@@ -1218,15 +1227,12 @@ def quiz_tematico():
 
     temas = cursor.fetchall()
 
-    conexao.close()
-
-    print("\n" + "=" * 45)
-    print("             🎭 QUIZ TEMÁTICO")
-    print("=" * 45)
-
     if not temas:
+
         print("\n❌ Nenhum tema cadastrado.")
-        print("Crie um tema primeiro.")
+        print("Cadastre um tema primeiro.")
+
+        conexao.close()
         return
 
     print("\n🎭 Temas disponíveis:\n")
@@ -1234,19 +1240,22 @@ def quiz_tematico():
     for tema_id, tema_nome in temas:
         print(f"{tema_id}. {tema_nome}")
 
-    print("0. Voltar")
+    # ==========================================
+    # ESCOLHER TEMA
+    # ==========================================
 
     while True:
 
         try:
-            escolha = int(
+
+            tema_id = int(
                 input("\nEscolha o tema: ")
             )
 
-            if escolha == 0:
-                return
-
-            if any(tema[0] == escolha for tema in temas):
+            if any(
+                tema[0] == tema_id
+                for tema in temas
+            ):
                 break
 
             print("❌ Tema inválido.")
@@ -1258,9 +1267,6 @@ def quiz_tematico():
     # ==========================================
     # BUSCAR QUESTÕES DO TEMA
     # ==========================================
-
-    conexao = conectar()
-    cursor = conexao.cursor()
 
     cursor.execute("""
         SELECT
@@ -1277,7 +1283,7 @@ def quiz_tematico():
         WHERE tema_id = ?
         ORDER BY RANDOM()
         LIMIT 10
-    """, (escolha,))
+    """, (tema_id,))
 
     questoes = cursor.fetchall()
 
@@ -1286,22 +1292,32 @@ def quiz_tematico():
     if not questoes:
 
         print("\n❌ Esse tema ainda não possui questões.")
-
         return
 
-    pontos = 0
+    # ==========================================
+    # NOME DO TEMA
+    # ==========================================
 
     tema_nome = next(
         tema[1]
         for tema in temas
-        if tema[0] == escolha
+        if tema[0] == tema_id
     )
 
-    print("\n" + "=" * 45)
-    print(f"🎭 TEMA: {tema_nome}")
-    print("=" * 45)
+    print("\n" + "=" * 50)
+    print(f"          🎭 TEMA: {tema_nome}")
+    print("=" * 50)
 
-    for numero, questao in enumerate(questoes, 1):
+    pontos = 0
+
+    # ==========================================
+    # FAZER QUIZ
+    # ==========================================
+
+    for numero, questao in enumerate(
+        questoes,
+        1
+    ):
 
         (
             questao_id,
@@ -1315,9 +1331,11 @@ def quiz_tematico():
             dificuldade
         ) = questao
 
-        print("\n" + "=" * 45)
-        print(f"Questão {numero}/{len(questoes)}")
-        print("=" * 45)
+        print("\n" + "-" * 50)
+        print(
+            f"Questão {numero}/{len(questoes)}"
+        )
+        print("-" * 50)
 
         print(f"\n{pergunta}\n")
 
@@ -1326,29 +1344,68 @@ def quiz_tematico():
         print(f"C) {c}")
         print(f"D) {d}")
 
+        # ======================================
+        # RESPOSTA
+        # ======================================
+
         while True:
 
             resposta = input(
                 "\nSua resposta: "
             ).strip().upper()
 
-            if resposta in ["A", "B", "C", "D"]:
+            if resposta in [
+                "A",
+                "B",
+                "C",
+                "D"
+            ]:
                 break
 
-            print("❌ Digite apenas A, B, C ou D.")
+            print(
+                "❌ Digite apenas A, B, C ou D."
+            )
+
+        # ======================================
+        # VERIFICAR
+        # ======================================
 
         if resposta == correta:
 
             print("\n✅ CORRETO!")
+
             pontos += 1
+            acertou = 1
 
         else:
 
             print("\n❌ INCORRETO!")
-            print(f"Resposta correta: {correta}")
+
+            print(
+                f"Resposta correta: {correta}"
+            )
 
             if explicacao:
-                print(f"💡 {explicacao}")
+
+                print(
+                    f"💡 {explicacao}"
+                )
+
+            acertou = 0
+
+        # ======================================
+        # SALVAR RESPOSTA
+        # ======================================
+
+        salvar_resposta(
+            questao_id,
+            resposta,
+            acertou
+        )
+
+    # ==========================================
+    # RESULTADO
+    # ==========================================
 
     mostrar_resultado(
         pontos,
@@ -1405,7 +1462,7 @@ def menu():
 
         elif escolha == "7":
 
-            gerenciar_temas()
+            quiz_tematico()
 
         elif escolha == "8":
 
