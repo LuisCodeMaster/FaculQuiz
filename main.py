@@ -830,113 +830,197 @@ def revisao_inteligente():
 # CADASTRAR QUESTÕES
 # ==========================================
 
+# ==========================================
+# CADASTRAR QUESTÃO
+# ==========================================
+
 def cadastrar_questao():
 
-    print("\n")
-    print("=" * 45)
+    print("\n" + "=" * 45)
     print("          ✏️ CADASTRAR QUESTÃO")
     print("=" * 45)
+
+    print("\nTipo de questão:")
+    print("1. 📚 Acadêmica")
+    print("2. 🎭 Temática")
+    print("3. 🔙 Voltar")
+
+    while True:
+
+        tipo = input("\nEscolha o tipo: ").strip()
+
+        if tipo in ["1", "2", "3"]:
+            break
+
+        print("❌ Escolha 1, 2 ou 3.")
+
+    if tipo == "3":
+        return
 
     conexao = conectar()
     cursor = conexao.cursor()
 
-    # ==============================
-    # ESCOLHER MATÉRIA
-    # ==============================
+    materia_id = None
+    assunto_id = None
+    tema_id = None
 
-    cursor.execute("""
-        SELECT id, nome
-        FROM materias
-        ORDER BY nome
-    """)
+    # ==========================================
+    # QUESTÃO ACADÊMICA
+    # ==========================================
 
-    materias = cursor.fetchall()
+    if tipo == "1":
 
-    if not materias:
-        print("\n❌ Nenhuma matéria cadastrada.")
-        conexao.close()
-        return
+        cursor.execute("""
+            SELECT id, nome
+            FROM materias
+            ORDER BY nome
+        """)
 
-    print("\n📚 Matérias:")
+        materias = cursor.fetchall()
 
-    for materia in materias:
-        print(f"{materia[0]}. {materia[1]}")
+        if not materias:
 
-    while True:
+            print("\n❌ Nenhuma disciplina cadastrada.")
+            conexao.close()
+            return
 
-        try:
-            materia_id = int(
-                input("\nEscolha a matéria: ")
-            )
+        print("\n📚 Disciplinas:")
 
-            if any(m[0] == materia_id for m in materias):
-                break
+        for id_materia, nome in materias:
+            print(f"{id_materia}. {nome}")
 
-            print("❌ Matéria inválida.")
+        while True:
 
-        except ValueError:
-            print("❌ Digite apenas o número da matéria.")
+            try:
 
-    # ==============================
-    # ESCOLHER ASSUNTO
-    # ==============================
+                materia_id = int(
+                    input("\nEscolha a disciplina: ")
+                )
 
-    cursor.execute("""
-        SELECT id, nome
-        FROM assuntos
-        WHERE materia_id = ?
-        ORDER BY id
-    """, (materia_id,))
+                if any(
+                    m[0] == materia_id
+                    for m in materias
+                ):
+                    break
 
-    assuntos = cursor.fetchall()
+                print("❌ Disciplina inválida.")
 
-    if not assuntos:
-        print("\n❌ Essa matéria não possui assuntos cadastrados.")
-        conexao.close()
-        return
+            except ValueError:
 
-    print("\n🧠 Assuntos:")
+                print("❌ Digite apenas o número.")
 
-    for assunto in assuntos:
-        print(f"{assunto[0]}. {assunto[1]}")
+        cursor.execute("""
+            SELECT id, nome
+            FROM assuntos
+            WHERE materia_id = ?
+            ORDER BY nome
+        """, (materia_id,))
 
-    while True:
+        assuntos = cursor.fetchall()
 
-        try:
-            assunto_id = int(
-                input("\nEscolha o assunto: ")
-            )
+        if not assuntos:
 
-            if any(a[0] == assunto_id for a in assuntos):
-                break
+            print("\n❌ Essa disciplina não possui assuntos.")
+            conexao.close()
+            return
 
-            print("❌ Assunto inválido.")
+        print("\n📖 Assuntos:")
 
-        except ValueError:
-            print("❌ Digite apenas o número do assunto.")
+        for id_assunto, nome in assuntos:
+            print(f"{id_assunto}. {nome}")
 
-    # ==============================
+        while True:
+
+            try:
+
+                assunto_id = int(
+                    input("\nEscolha o assunto: ")
+                )
+
+                if any(
+                    a[0] == assunto_id
+                    for a in assuntos
+                ):
+                    break
+
+                print("❌ Assunto inválido.")
+
+            except ValueError:
+
+                print("❌ Digite apenas o número.")
+
+    # ==========================================
+    # QUESTÃO TEMÁTICA
+    # ==========================================
+
+    elif tipo == "2":
+
+        cursor.execute("""
+            SELECT id, nome
+            FROM temas
+            ORDER BY nome
+        """)
+
+        temas = cursor.fetchall()
+
+        if not temas:
+
+            print("\n❌ Nenhum tema cadastrado.")
+            print("Crie um tema primeiro.")
+            conexao.close()
+            return
+
+        print("\n🎭 Temas:")
+
+        for id_tema, nome in temas:
+            print(f"{id_tema}. {nome}")
+
+        while True:
+
+            try:
+
+                tema_id = int(
+                    input("\nEscolha o tema: ")
+                )
+
+                if any(
+                    t[0] == tema_id
+                    for t in temas
+                ):
+                    break
+
+                print("❌ Tema inválido.")
+
+            except ValueError:
+
+                print("❌ Digite apenas o número.")
+
+    # ==========================================
     # PERGUNTA
-    # ==============================
+    # ==========================================
 
     pergunta = input("\n📝 Pergunta: ").strip()
 
     while not pergunta:
-        print("❌ A pergunta não pode ficar vazia.")
-        pergunta = input("📝 Pergunta: ").strip()
 
-    # ==============================
+        print("❌ A pergunta não pode ficar vazia.")
+
+        pergunta = input(
+            "📝 Pergunta: "
+        ).strip()
+
+    # ==========================================
     # ALTERNATIVAS
-    # ==============================
+    # ==========================================
 
     alternativa_a = input("\nA) ").strip()
     alternativa_b = input("B) ").strip()
     alternativa_c = input("C) ").strip()
     alternativa_d = input("D) ").strip()
 
-    # ==============================
+    # ==========================================
     # RESPOSTA CORRETA
-    # ==============================
+    # ==========================================
 
     while True:
 
@@ -949,17 +1033,17 @@ def cadastrar_questao():
 
         print("❌ Digite A, B, C ou D.")
 
-    # ==============================
+    # ==========================================
     # EXPLICAÇÃO
-    # ==============================
+    # ==========================================
 
     explicacao = input(
         "\n💡 Explicação: "
     ).strip()
 
-    # ==============================
+    # ==========================================
     # DIFICULDADE
-    # ==============================
+    # ==========================================
 
     print("\n🎯 Dificuldade:")
     print("1. 🟢 Fácil")
@@ -973,19 +1057,21 @@ def cadastrar_questao():
         ).strip()
 
         if dificuldade in ["1", "2", "3"]:
+
             dificuldade = int(dificuldade)
             break
 
         print("❌ Escolha 1, 2 ou 3.")
 
-    # ==============================
-    # SALVAR
-    # ==============================
+    # ==========================================
+    # SALVAR QUESTÃO
+    # ==========================================
 
     cursor.execute("""
         INSERT INTO questoes (
             materia_id,
             assunto_id,
+            tema_id,
             pergunta,
             alternativa_a,
             alternativa_b,
@@ -995,10 +1081,11 @@ def cadastrar_questao():
             explicacao,
             dificuldade
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         materia_id,
         assunto_id,
+        tema_id,
         pergunta,
         alternativa_a,
         alternativa_b,
@@ -1018,6 +1105,256 @@ def cadastrar_questao():
 
 
 # ==========================================
+# CADASTRAR TEMA
+# ==========================================
+
+def cadastrar_tema():
+
+    print("\n" + "=" * 45)
+    print("              🎭 CRIAR TEMA")
+    print("=" * 45)
+
+    nome = input("\nNome do tema: ").strip()
+
+    if not nome:
+        print("\n❌ O nome do tema não pode ficar vazio.")
+        return
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    try:
+
+        cursor.execute("""
+            INSERT INTO temas (nome)
+            VALUES (?)
+        """, (nome,))
+
+        conexao.commit()
+
+        print("\n✅ Tema criado com sucesso!")
+
+    except Exception:
+
+        print("\n❌ Esse tema já existe.")
+
+    finally:
+
+        conexao.close()
+
+# ==========================================
+# GERENCIAR TEMAS
+# ==========================================
+
+def gerenciar_temas():
+
+    while True:
+
+        print("\n" + "=" * 45)
+        print("               🎭 TEMAS")
+        print("=" * 45)
+
+        print("\n1. ➕ Criar tema")
+        print("2. 📋 Listar temas")
+        print("3. 🔙 Voltar")
+
+        escolha = input(
+            "\nEscolha uma opção: "
+        ).strip()
+
+        if escolha == "1":
+
+            cadastrar_tema()
+
+        elif escolha == "2":
+
+            conexao = conectar()
+            cursor = conexao.cursor()
+
+            cursor.execute("""
+                SELECT id, nome
+                FROM temas
+                ORDER BY nome
+            """)
+
+            temas = cursor.fetchall()
+
+            conexao.close()
+
+            print("\n" + "-" * 45)
+            print("               🎭 TEMAS")
+            print("-" * 45)
+
+            if not temas:
+
+                print("\nNenhum tema cadastrado.")
+
+            else:
+
+                for tema_id, nome in temas:
+                    print(f"{tema_id}. {nome}")
+
+        elif escolha == "3":
+
+            break
+
+        else:
+
+            print("\n❌ Opção inválida.")
+# ==========================================
+# QUIZ TEMÁTICO
+# ==========================================
+
+def quiz_tematico():
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT id, nome
+        FROM temas
+        ORDER BY nome
+    """)
+
+    temas = cursor.fetchall()
+
+    conexao.close()
+
+    print("\n" + "=" * 45)
+    print("             🎭 QUIZ TEMÁTICO")
+    print("=" * 45)
+
+    if not temas:
+        print("\n❌ Nenhum tema cadastrado.")
+        print("Crie um tema primeiro.")
+        return
+
+    print("\n🎭 Temas disponíveis:\n")
+
+    for tema_id, tema_nome in temas:
+        print(f"{tema_id}. {tema_nome}")
+
+    print("0. Voltar")
+
+    while True:
+
+        try:
+            escolha = int(
+                input("\nEscolha o tema: ")
+            )
+
+            if escolha == 0:
+                return
+
+            if any(tema[0] == escolha for tema in temas):
+                break
+
+            print("❌ Tema inválido.")
+
+        except ValueError:
+
+            print("❌ Digite apenas o número do tema.")
+
+    # ==========================================
+    # BUSCAR QUESTÕES DO TEMA
+    # ==========================================
+
+    conexao = conectar()
+    cursor = conexao.cursor()
+
+    cursor.execute("""
+        SELECT
+            id,
+            pergunta,
+            alternativa_a,
+            alternativa_b,
+            alternativa_c,
+            alternativa_d,
+            correta,
+            explicacao,
+            dificuldade
+        FROM questoes
+        WHERE tema_id = ?
+        ORDER BY RANDOM()
+        LIMIT 10
+    """, (escolha,))
+
+    questoes = cursor.fetchall()
+
+    conexao.close()
+
+    if not questoes:
+
+        print("\n❌ Esse tema ainda não possui questões.")
+
+        return
+
+    pontos = 0
+
+    tema_nome = next(
+        tema[1]
+        for tema in temas
+        if tema[0] == escolha
+    )
+
+    print("\n" + "=" * 45)
+    print(f"🎭 TEMA: {tema_nome}")
+    print("=" * 45)
+
+    for numero, questao in enumerate(questoes, 1):
+
+        (
+            questao_id,
+            pergunta,
+            a,
+            b,
+            c,
+            d,
+            correta,
+            explicacao,
+            dificuldade
+        ) = questao
+
+        print("\n" + "=" * 45)
+        print(f"Questão {numero}/{len(questoes)}")
+        print("=" * 45)
+
+        print(f"\n{pergunta}\n")
+
+        print(f"A) {a}")
+        print(f"B) {b}")
+        print(f"C) {c}")
+        print(f"D) {d}")
+
+        while True:
+
+            resposta = input(
+                "\nSua resposta: "
+            ).strip().upper()
+
+            if resposta in ["A", "B", "C", "D"]:
+                break
+
+            print("❌ Digite apenas A, B, C ou D.")
+
+        if resposta == correta:
+
+            print("\n✅ CORRETO!")
+            pontos += 1
+
+        else:
+
+            print("\n❌ INCORRETO!")
+            print(f"Resposta correta: {correta}")
+
+            if explicacao:
+                print(f"💡 {explicacao}")
+
+    mostrar_resultado(
+        pontos,
+        len(questoes)
+    )
+# ==========================================
 # MENU
 # ==========================================
 def menu():
@@ -1035,7 +1372,8 @@ def menu():
         print("4. 📖 Estudar ponto fraco")
         print("5. 🤖 Quiz adaptativo")
         print("6. ✏️ Cadastrar questão")
-        print("7. ❌ Sair")
+        print("7. 🎭 Quiz temático")
+        print("8. ❌ Sair")
 
         escolha = input(
             "\nEscolha uma opção: "
@@ -1067,14 +1405,16 @@ def menu():
 
         elif escolha == "7":
 
+            gerenciar_temas()
+
+        elif escolha == "8":
+
             print("\nAté a próxima! 👋")
             break
 
         else:
 
             print("\n❌ Opção inválida.")
-
-
 # ==========================================
 # INICIAR PROGRAMA
 # ==========================================
